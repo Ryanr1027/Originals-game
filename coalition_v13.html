@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Coalition Builder</title>
+<style>
+:root {
+  --bg: #0f0e17;
+  --bg2: #1a1828;
+  --paper: #f0ebe0;
+  --aged: #c8bfa8;
+  --mute: #6a6070;
+  --gold: #c9a227;
+  --teal: #1a9a80;
+  --red: #c0392b;
+  --purple: #7060c0;
+  --r: 8px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--paper);
+  font-family: system-ui, -apple-system, sans-serif;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 100vh;
+  padding: max(.75rem, env(safe-area-inset-top, .75rem)) max(.75rem, env(safe-area-inset-right, .75rem)) max(.75rem, env(safe-area-inset-bottom, .75rem)) max(.75rem, env(safe-area-inset-left, .75rem));
+}
+#app { width: 100%; max-width: 680px; }
+
+/* screens */
+.scr { display: none; }
+.scr.on { display: block; }
+
+/* ── CHAR SELECT ── */
+#char-scr { }
+.char-intro { text-align: center; margin-bottom: 1.5rem; }
+.char-intro h1 { font-size: clamp(1.6rem, 5vw, 2.6rem); font-weight: 800; letter-spacing: -.02em; color: var(--paper); line-height: 1; margin-bottom: .35rem; }
+.char-intro h1 span { color: var(--gold); }
+.char-intro p { font-size: 13px; color: var(--mute); }
+.char-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .6rem; margin-bottom: 1rem; }
+@media(min-width:520px){ .char-grid { grid-template-columns: repeat(4,1fr); } }
+.ccard { background: var(--bg2); border: 1.5px solid rgba(255,255,255,.08); border-radius: var(--r); padding: .85rem .75rem; cursor: pointer; transition: border-color .15s, background .15s; text-align: center; }
+.ccard:hover { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.2); }
+.ccard.sel { border-color: var(--gold); background: rgba(201,162,39,.08); }
+.ccard-icon { font-size: 2rem; margin-bottom: .4rem; }
+.ccard-name { font-size: 13px; font-weight: 700; color: var(--paper); margin-bottom: .2rem; }
+.ccard-role { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--gold); margin-bottom: .4rem; }
+.ccard-abi { font-size: 11px; color: var(--aged); line-height: 1.4; }
+.start-row { text-align: center; }
+
+/* ── HUD ── */
+#hud { display: flex; align-items: center; gap: .6rem; padding: .6rem .75rem; background: var(--bg2); border-radius: var(--r); margin-bottom: .75rem; flex-wrap: wrap; border: 1px solid rgba(255,255,255,.06); position: sticky; top: max(0px, env(safe-area-inset-top, 0px)); z-index: 20; }
+.hb { flex: 1; min-width: 50px; }
+.hb-lbl { font-size: 8px; text-transform: uppercase; letter-spacing: .14em; color: var(--mute); margin-bottom: 1px; }
+.hb-val { font-size: 17px; font-weight: 800; }
+.hb-val.gold { color: var(--gold); }
+.bar-wrap { flex: 2; min-width: 100px; }
+.bar-track { height: 4px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; margin-top: 3px; }
+.bar-fill { height: 100%; border-radius: 2px; transition: width .45s ease; }
+.bar-fill.rad { background: linear-gradient(90deg, var(--red), var(--gold)); }
+.bar-fill.pres { background: linear-gradient(90deg, #44304a, var(--red)); }
+.char-pill { display: flex; align-items: center; gap: 5px; padding: 3px 9px; background: rgba(201,162,39,.1); border: 1px solid rgba(201,162,39,.22); border-radius: 20px; margin-left: auto; }
+.char-pill span { font-size: 10px; color: var(--gold); font-weight: 700; }
+
+/* ── ROUND ── */
+.round-dots { display: flex; justify-content: center; gap: 5px; margin-bottom: .75rem; }
+.rd { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.12); transition: background .3s; }
+.rd.done { background: var(--gold); }
+.rd.cur { background: var(--paper); }
+
+.round-box { background: var(--bg2); border: 1px solid rgba(255,255,255,.07); border-radius: var(--r); padding: 1rem 1.1rem; margin-bottom: .65rem; }
+.round-kicker { font-size: 10px; text-transform: uppercase; letter-spacing: .18em; color: var(--gold); margin-bottom: .3rem; }
+.round-title { font-size: clamp(1.1rem, 3vw, 1.45rem); font-weight: 800; color: var(--paper); line-height: 1.15; margin-bottom: .45rem; }
+.round-flavor { font-size: 13px; color: var(--aged); line-height: 1.6; }
+
+/* pushback banner */
+#pushback { display: none; background: rgba(192,57,43,.08); border: 1px solid rgba(192,57,43,.22); border-radius: var(--r); padding: .7rem 1rem; margin-bottom: .65rem; }
+#pushback.on { display: block; }
+.pb-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .16em; color: var(--red); margin-bottom: .35rem; }
+.pb-txt { font-size: 13px; color: var(--aged); line-height: 1.55; margin-bottom: .55rem; }
+.pb-btns { display: flex; gap: .45rem; flex-wrap: wrap; }
+.pb-btn { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 5px; padding: .38rem .75rem; font-size: 11px; color: var(--paper); cursor: pointer; transition: background .13s; font-family: inherit; }
+.pb-btn:hover { background: rgba(255,255,255,.1); }
+.pb-result { font-size: 11px; color: var(--aged); font-style: italic; margin-top: .45rem; display: none; }
+.pb-result.on { display: block; }
+
+/* newspaper */
+#newspaper { display: none; background: #f4f0e8; border-radius: var(--r); padding: .85rem 1rem; margin-bottom: .65rem; position: relative; overflow: hidden; }
+#newspaper.on { display: block; }
+.np-flag { font-family: 'Times New Roman', serif; font-size: 10px; font-weight: 700; letter-spacing: .3em; text-transform: uppercase; color: #222; border-bottom: 2px double #222; padding-bottom: .3rem; margin-bottom: .3rem; }
+.np-hl { font-family: 'Times New Roman', serif; font-size: clamp(.95rem, 2.5vw, 1.25rem); font-weight: 700; color: #111; line-height: 1.2; margin-bottom: .2rem; }
+.np-sub { font-family: 'Times New Roman', serif; font-size: 12px; font-style: italic; color: #555; margin-bottom: .4rem; }
+.np-body { font-family: 'Times New Roman', serif; font-size: 11px; color: #444; line-height: 1.55; }
+.np-stamp { position: absolute; top: 8px; right: 8px; font-size: 9px; font-weight: 700; font-family: system-ui; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: .08em; }
+.np-stamp.fav { background: #c8e6c9; color: #1b5e20; }
+.np-stamp.hos { background: #ffcdd2; color: #b71c1c; }
+.np-stamp.neu { background: #e8eaf6; color: #283593; }
+
+/* faction map */
+#faction-map { display: grid; grid-template-columns: repeat(3,1fr); gap: .45rem; margin-bottom: .65rem; }
+.fcard { background: var(--bg2); border: 1.5px solid rgba(255,255,255,.07); border-radius: 6px; padding: .5rem .65rem; cursor: pointer; transition: border-color .15s, background .15s; }
+.fcard:hover:not(.used) { border-color: rgba(255,255,255,.2); background: rgba(255,255,255,.04); }
+.fcard.allied { border-color: var(--teal); background: rgba(26,154,128,.1); }
+.fcard.hostile { border-color: var(--red); background: rgba(192,57,43,.08); }
+.fcard.used { opacity: .5; cursor: default; }
+.fcard-top { display: flex; align-items: center; gap: .4rem; margin-bottom: .3rem; }
+.fcard-icon { font-size: 16px; }
+.fcard-name { font-size: 11px; font-weight: 700; color: var(--paper); }
+.fcard-status { font-size: 9px; color: var(--mute); }
+.fcard-bar { height: 3px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
+.fcard-fill { height: 100%; background: var(--gold); border-radius: 2px; transition: width .45s; }
+
+/* diplomacy modal */
+#diplo { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 50; align-items: center; justify-content: center; padding: .75rem; }
+#diplo.on { display: flex; }
+.diplo-box { background: var(--bg2); border: 1px solid rgba(255,255,255,.13); border-radius: 12px; padding: 1.2rem 1.3rem; max-width: 460px; width: 100%; max-height: 88vh; overflow-y: auto; }
+.diplo-head { display: flex; align-items: center; gap: .7rem; margin-bottom: .85rem; }
+.diplo-ava { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.diplo-fname { font-size: 1.05rem; font-weight: 700; color: var(--paper); }
+.diplo-fstatus { font-size: 11px; margin-top: 2px; }
+.diplo-concern { font-size: 13px; font-style: italic; color: var(--aged); border-left: 2px solid var(--mute); padding: .45rem .75rem; line-height: 1.55; border-radius: 0 4px 4px 0; background: rgba(255,255,255,.03); margin-bottom: .85rem; }
+.diplo-choices { display: flex; flex-direction: column; gap: .45rem; margin-bottom: .75rem; }
+.dchoice { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 6px; padding: .7rem .85rem; cursor: pointer; text-align: left; font-size: 13px; color: var(--paper); line-height: 1.5; transition: background .13s, border-color .13s; font-family: inherit; }
+.dchoice:hover { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.22); }
+.dchoice-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
+.dtag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: 2px 5px; border-radius: 3px; }
+.dtag-gold { background: rgba(201,162,39,.2); color: var(--gold); }
+.dtag-rad  { background: rgba(192,57,43,.18); color: #e06050; }
+.dtag-troj { background: rgba(112,96,192,.25); color: #b0a5e0; }
+.dtag-tact { background: rgba(26,154,128,.2); color: #60c0a8; }
+.dtag-eth  { background: rgba(26,154,128,.2); color: #60c0a8; }
+.dtag-pat  { background: rgba(192,57,43,.18); color: #e06050; }
+.dtag-log  { background: rgba(42,111,168,.2); color: #80b0e0; }
+.diplo-result { display: none; font-size: 13px; color: var(--aged); line-height: 1.6; padding: .65rem .8rem; background: rgba(255,255,255,.04); border-radius: 6px; margin-bottom: .6rem; }
+.diplo-result.on { display: block; }
+.diplo-insight { display: none; font-size: 12px; font-style: italic; color: var(--aged); border-left: 2px solid var(--gold); padding: .45rem .75rem; border-radius: 0 4px 4px 0; background: rgba(201,162,39,.06); line-height: 1.5; margin-bottom: .6rem; }
+.diplo-insight.on { display: block; }
+.diplo-chips { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: .6rem; }
+.dchip { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 700; }
+.dchip.pos { background: rgba(26,154,128,.2); color: #60c0a8; }
+.dchip.neg { background: rgba(192,57,43,.17); color: #e06050; }
+
+/* choices */
+.choices-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .15em; color: var(--mute); margin-bottom: .5rem; }
+.choices { display: flex; flex-direction: column; gap: .5rem; }
+.choice { background: var(--bg2); border: 1.5px solid rgba(255,255,255,.09); border-radius: var(--r); padding: .8rem 1rem; cursor: pointer; text-align: left; transition: background .13s, border-color .13s; position: relative; }
+.choice:hover { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.22); }
+.choice.boosted { border-color: rgba(255,255,255,.09); background: var(--bg2); }
+.choice-letter { font-size: 10px; font-weight: 800; color: var(--gold); margin-right: .35rem; }
+.choice-text { font-size: 13px; color: var(--paper); line-height: 1.5; }
+.choice-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
+
+/* outcome */
+#outcome { display: none; background: var(--bg2); border: 1px solid rgba(255,255,255,.09); border-radius: var(--r); padding: 1rem 1.1rem; margin-top: .6rem; }
+#outcome.on { display: block; }
+.out-head { font-size: 10px; text-transform: uppercase; letter-spacing: .15em; margin-bottom: .4rem; }
+.out-head.good { color: var(--teal); }
+.out-head.bad  { color: var(--red); }
+.out-head.neutral { color: var(--gold); }
+.out-txt { font-size: 13px; color: var(--aged); line-height: 1.6; margin-bottom: .6rem; }
+.out-insight { font-size: 12px; font-style: italic; color: var(--aged); border-left: 2px solid var(--gold); padding: .4rem .7rem; border-radius: 0 4px 4px 0; background: rgba(201,162,39,.06); line-height: 1.5; margin-bottom: .6rem; }
+
+/* buttons */
+.btn { border: none; cursor: pointer; font-family: inherit; border-radius: 6px; transition: opacity .13s, transform .1s; }
+.btn:active { transform: scale(.97); }
+.btn-gold { background: var(--gold); color: #0f0e17; padding: .65rem 1.8rem; font-size: 14px; font-weight: 700; letter-spacing: .03em; }
+.btn-gold:hover { opacity: .86; }
+.btn-ghost { background: transparent; color: var(--mute); border: 1px solid rgba(255,255,255,.12); padding: .45rem 1.1rem; font-size: 12px; }
+.btn-ghost:hover { color: var(--paper); background: rgba(255,255,255,.05); }
+.btn-ghost:disabled { opacity: .35; cursor: default; }
+
+/* end */
+#end-scr { text-align: center; }
+.end-grade { font-size: 5.5rem; font-weight: 900; color: var(--gold); line-height: 1; margin-bottom: .15rem; }
+.end-title { font-size: 1.5rem; font-weight: 800; color: var(--paper); margin-bottom: .35rem; }
+.end-desc  { font-size: 13px; color: var(--aged); line-height: 1.65; max-width: 460px; margin: 0 auto 1.2rem; }
+.end-stats { display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
+.est-val { font-size: 1.7rem; font-weight: 800; color: var(--paper); }
+.est-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .12em; color: var(--mute); margin-top: 1px; }
+.end-principles { max-width: 480px; margin: 0 auto 1.3rem; background: rgba(201,162,39,.07); border: 1px solid rgba(201,162,39,.18); border-radius: var(--r); padding: 1rem 1.1rem; text-align: left; }
+.ep-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .16em; color: var(--gold); margin-bottom: .55rem; }
+.ep-p { font-size: 12px; color: var(--aged); line-height: 1.6; margin-bottom: .4rem; }
+.ep-p:last-child { margin-bottom: 0; }
+
+/* debrief log */
+.debrief { max-width: 480px; margin: 0 auto 1.3rem; text-align: left; }
+.debrief-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .16em; color: var(--mute); margin-bottom: .7rem; text-align: center; }
+.debrief-item { background: var(--bg2); border: 1px solid rgba(255,255,255,.07); border-radius: var(--r); padding: .85rem 1rem; margin-bottom: .5rem; }
+.debrief-item.good  { border-left: 3px solid var(--teal); }
+.debrief-item.bad   { border-left: 3px solid var(--red); }
+.debrief-item.neutral { border-left: 3px solid var(--gold); }
+.debrief-round { font-size: 9px; text-transform: uppercase; letter-spacing: .14em; color: var(--mute); margin-bottom: .3rem; }
+.debrief-chosen { font-size: 13px; color: var(--paper); line-height: 1.45; margin-bottom: .25rem; }
+.debrief-verdict { font-size: 11px; font-weight: 700; margin-bottom: .4rem; }
+.debrief-verdict.good    { color: var(--teal); }
+.debrief-verdict.bad     { color: var(--red); }
+.debrief-verdict.neutral { color: var(--gold); }
+.debrief-better { font-size: 12px; color: var(--aged); line-height: 1.5; padding: .5rem .7rem; background: rgba(255,255,255,.03); border-radius: 5px; margin-top: .4rem; }
+.debrief-better strong { color: var(--paper); }
+.end-row { display: flex; justify-content: center; gap: .6rem; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ── CHAR SELECT ── -->
+<div id="char-scr" class="scr on">
+  <div class="char-intro">
+    <h1>CHANGE THE<br><span>POLICY</span></h1>
+    <p>Your school just announced a new phone restriction. You think it's unfair. Build a coalition and fight it.</p>
+    <p style="margin-top:.5rem;font-size:11px;color:#c0392b;font-weight:600">⚠ Every choice has a tradeoff. Even good moves cost something. A+ requires managing all four stats at once.</p>
+  </div>
+  <div class="start-row" style="margin-top:1.5rem">
+    <button class="btn btn-gold" onclick="startGame()">Start →</button>
+  </div>
+</div>
+
+<!-- ── GAME ── -->
+<div id="game-scr" class="scr">
+  <div id="hud">
+    <div class="hb"><div class="hb-lbl">Coalition</div><div class="hb-val gold" id="h-c">0</div></div>
+    <div class="hb"><div class="hb-lbl">Cred</div><div class="hb-val" id="h-cr">50</div></div>
+    <div class="hb"><div class="hb-lbl">Mom</div><div class="hb-val" id="h-m">40</div></div>
+    <div class="bar-wrap">
+      <div class="hb-lbl">Message heat</div>
+      <div class="bar-track"><div class="bar-fill rad" id="h-rad" style="width:50%"></div></div>
+    </div>
+    <div class="bar-wrap">
+      <div class="hb-lbl">Pressure (lower = better)</div>
+      <div class="bar-track"><div class="bar-fill pres" id="h-pres" style="width:20%"></div></div>
+    </div>
+
+  </div>
+
+  <div class="round-dots" id="rdots"></div>
+
+  <div id="newspaper" class="round-box">
+    <div class="np-flag">The Movement Gazette</div>
+    <div class="np-hl" id="np-hl"></div>
+    <div class="np-sub" id="np-sub"></div>
+    <div class="np-body" id="np-body"></div>
+    <div class="np-stamp" id="np-stamp"></div>
+  </div>
+
+  <div id="pushback">
+    <div class="pb-lbl">⚠ The majority pushes back</div>
+    <div class="pb-txt" id="pb-txt"></div>
+    <div class="pb-btns" id="pb-btns"></div>
+    <div class="pb-result" id="pb-result"></div>
+  </div>
+
+  <div class="round-box">
+    <div class="round-kicker" id="r-kicker"></div>
+    <div class="round-title" id="r-title"></div>
+    <div class="round-flavor" id="r-flavor"></div>
+  </div>
+
+  <div id="faction-map"></div>
+
+  <div class="choices-lbl">Your move</div>
+  <div class="choices" id="choices"></div>
+
+  <div id="outcome">
+    <div class="out-head" id="out-head"></div>
+    <div class="out-txt" id="out-txt"></div>
+    <div class="out-insight" id="out-insight"></div>
+    <div class="diplo-chips" id="out-chips"></div>
+    <button class="btn btn-gold" id="next-btn" onclick="nextRound()">Next →</button>
+  </div>
+</div>
+
+<!-- ── DIPLO MODAL ── -->
+<div id="diplo">
+  <div class="diplo-box">
+    <div class="diplo-head">
+      <div class="diplo-ava" id="d-ava"></div>
+      <div><div class="diplo-fname" id="d-name"></div><div class="diplo-fstatus" id="d-stat"></div></div>
+    </div>
+    <div class="diplo-concern" id="d-concern"></div>
+    <div class="diplo-choices" id="d-choices"></div>
+    <div class="diplo-result" id="d-result"></div>
+    <div class="diplo-insight" id="d-insight"></div>
+    <div class="diplo-chips" id="d-chips"></div>
+    <button class="btn btn-ghost" onclick="closeDiplo()">Close</button>
+  </div>
+</div>
+
+<!-- ── END ── -->
+<div id="end-scr" class="scr">
+  <div class="end-grade" id="eg">B</div>
+  <div class="end-title" id="et">Skilled Organizer</div>
+  <div class="end-desc" id="ed"></div>
+  <div class="end-stats" id="es"></div>
+  <div class="debrief" id="debrief"></div>
+
+  <div class="end-row">
+    <button class="btn btn-gold" onclick="location.reload()">Play again</button>
+  </div>
+</div>
+
+</div><!-- #app -->
+
+<script>
+// ══════════ DATA ══════════
+
+const CHARS = [
+  {id:'pragmatist',icon:'📋',name:'The Negotiator',role:'Works the system from inside',
+   abi:'Trojan horse moves: +8 cred, +1 coalition.',boosts:['trojan'],
+   s:{coalition:3,cred:55,mom:35,rad:40}},
+  {id:'firebrand',icon:'📢',name:'The Activist',role:'Loud, visible, unapologetic',
+   abi:'Radical moves never lose momentum.',boosts:['radical'],
+   s:{coalition:2,cred:45,mom:60,rad:75}},
+  {id:'diplomat',icon:'🤝',name:'The Consensus Builder',role:'Finds common ground with everyone',
+   abi:'Goldilocks moves: +10 credibility.',boosts:['goldilocks'],
+   s:{coalition:4,cred:60,mom:40,rad:35}},
+  {id:'strategist',icon:'🧠',name:'The Planner',role:'Three moves ahead at all times',
+   abi:'Tactical moves store a reserve: +4 all stats next choice.',boosts:['tactical'],
+   s:{coalition:3,cred:50,mom:45,rad:50}},
+];
+
+const FACTIONS = [
+  {id:'students',icon:'🎒',name:'Angry Students',color:'#c0392b',support:70,status:'allied',
+   concern:'"We want a full reversal of the policy no compromises."',
+   diplo:[
+     {txt:'Let them lead the next all-school walkout.',tags:['radical'],rhet:'pathos',
+      d:{support:+15,cred:+5,pres:+8},q:'mixed',res:'Energy skyrockets but the walkout gets you a meeting with the principal where she refuses to budge and calls your group "disruptive."',ins:'Grant: founders are typically the most radical members. High energy is real, but it can narrow who joins the coalition.'},
+     {txt:'Ask them to channel energy into a formal petition instead.',tags:['goldilocks'],rhet:'logos',
+      d:{support:+8,cred:+3,pres:+3},q:'good',res:'They\'re frustrated but agree. 200 signatures in two days.',ins:'The Goldilocks message satisfies no single member fully and that\'s the sign it\'s working.'},
+     {txt:'Tell them to hold off until you have more support.',tags:['tactical'],rhet:'logos',
+      d:{support:-12,mom:-5},q:'bad',res:'They feel dismissed. Three of them start their own competing campaign.',ins:'Narcissism of small differences: near-allies fight most bitterly. Don\'t give them a reason to split off.'},
+   ]},
+  {id:'honors',icon:'📚',name:'Honor Students',color:'#2a6fa8',support:30,status:'neutral',
+   concern:'"We don\'t want to risk our records getting involved in something like this."',
+   diplo:[
+     {txt:'Show them data on how the policy hurts GPA and college apps.',tags:['goldilocks'],rhet:'logos',
+      d:{support:+20,coalition:+1,cred:+6,pres:-5},q:'good',res:'Now it\'s their issue too. Three of them offer to help write the formal proposal.',ins:'Common tactics matter more than shared values. You didn\'t need them to care about fairness just self-interest.'},
+     {txt:'Ask them to just sign the petition quietly no public involvement.',tags:['trojan'],rhet:'ethos',
+      d:{support:+15,coalition:+1,cred:+3},q:'mixed',res:'They sign. But the angry students feel like you\'re hiding the alliance.',ins:'The Trojan horse works but transparency with your base matters too.'},
+     {txt:'Tell them this affects everyone, not just the students who are struggling.',tags:['radical'],rhet:'pathos',
+      d:{support:-5,pres:+6},q:'neutral',res:'They nod but don\'t commit. Moral arguments without personal stakes don\'t move cautious people.',ins:'Too hot repels the center. Self-interest is a more reliable motivator than principle for reluctant allies.'},
+   ]},
+  {id:'teachers',icon:'🍎',name:'Sympathetic Teachers',color:'#b8962e',support:45,status:'neutral',
+   concern:'"We agree with you privately, but we can\'t publicly oppose the administration."',
+   diplo:[
+     {txt:'Ask them to raise concerns through official faculty channels.',tags:['trojan'],rhet:'ethos',
+      d:{support:+25,coalition:+1,mom:+5,pres:-6},q:'good',res:'Two teachers bring it up at the next staff meeting. The principal has to respond officially. The Trojan horse works.',ins:'Change from within reads as authentic. When teachers raise it, it\'s no longer just a student complaint.'},
+     {txt:'Ask them to sign a letter of support for the petition.',tags:['goldilocks'],rhet:'logos',
+      d:{support:+10,cred:+5},q:'neutral',res:'One teacher signs. Others say it\'s too risky. A partial win.',ins:'Credibility without cover doesn\'t move people who have something to lose.'},
+     {txt:'Pressure them publicly "if you agree, why won\'t you say so?"',tags:['radical'],rhet:'pathos',
+      d:{support:-15,cred:-5,pres:+8},q:'bad',res:'They shut down completely. You\'ve made them defensive instead of helpful.',ins:'Pathos without logos backfires with audiences who have real institutional risk.'},
+   ]},
+  {id:'admin',icon:'🏫',name:'Vice Principal',color:'#6b5fa0',support:10,status:'hostile',
+   concern:'"The policy was approved by the school board. This isn\'t up for student debate."',
+   diplo:[
+     {txt:'Request a private meeting to present student data no press, no drama.',tags:['trojan'],rhet:'logos',
+      d:{support:+18,cred:+8,pres:-8},q:'good',res:'She agrees to review the data. No promises but the door is open.',ins:'Trojan horse: private access beats public confrontation with authority figures who have something to protect.'},
+     {txt:'Show up at the school board meeting and speak during public comment.',tags:['radical'],rhet:'pathos',
+      d:{support:-5,mom:+8,cred:-3,pres:+12},q:'mixed',res:'You make the news but the VP feels ambushed and becomes less cooperative.',ins:'Public confrontation raises your momentum but can close off private channels you need.'},
+     {txt:'Propose a 30-day student feedback pilot before the policy fully takes effect.',tags:['goldilocks'],rhet:'logos',
+      d:{support:+10,cred:+5,pres:-3},q:'good',res:'She agrees to the pilot. It\'s not a reversal but it\'s a foothold.',ins:'Common ground as the entry point. The side door is slower but it stays open.'},
+   ]},
+  {id:'parents',icon:'👨‍👩‍👧',name:'Parent Group',color:'#1a7a68',support:50,status:'neutral',
+   concern:'"We\'ve heard about this but don\'t really know the details. What exactly is the issue?"',
+   diplo:[
+     {txt:'Invite them to a student-led town hall with specific examples and data.',tags:['trojan'],rhet:'ethos',
+      d:{support:+20,cred:+8,mom:+6,pres:-5},q:'good',res:'Parents show up. Three of them email the principal directly afterward. Admin notices.',ins:'Ethos: letting the affected community speak is more credible than a student spokesperson alone.'},
+     {txt:'Send them a one-page summary of the issue.',tags:['tactical'],rhet:'logos',
+      d:{support:+8,cred:+3},q:'neutral',res:'A few respond positively. Most don\'t engage.',ins:'Information without a personal ask produces passive support, not active allies.'},
+     {txt:'Post about it on social media and tag the school parents will see it.',tags:['radical'],rhet:'pathos',
+      d:{support:-5,mom:+5,pres:+8},q:'bad',res:'Some parents react badly they don\'t like the public pressure tactic and side with the administration.',ins:'Silence is not neutral but neither is going loud before you have the relationships to support it.'},
+   ]},
+  {id:'rival',icon:'🗣️',name:'Rival Student Group',color:'#c45c3a',support:20,status:'hostile',
+   concern:'"Your group doesn\'t speak for all students. You\'re making this about yourselves."',
+   diplo:[
+     {txt:'Invite their leader to co-chair the student coalition.',tags:['trojan','goldilocks'],rhet:'ethos',
+      d:{support:+30,coalition:+1,cred:+7,pres:-6},q:'good',res:'They accept. Now it\'s not your campaign it\'s a student coalition. Much harder for admin to dismiss.',ins:'Grant: converting a frenemy beats fighting one. The narcissism of small differences is the most common way student movements self-destruct.'},
+     {txt:'Publicly acknowledge they raised valid points about representation.',tags:['goldilocks'],rhet:'logos',
+      d:{support:+18,cred:+5,pres:-3},q:'good',res:'The tension eases. They don\'t fully join but they stop publicly opposing you.',ins:'Acknowledging valid criticism builds credibility with both sides. You don\'t have to agree to defuse.'},
+     {txt:'Call them out for dividing the student body when it matters most.',tags:['radical'],rhet:'pathos',
+      d:{support:-10,cred:-8,mom:-5,pres:+10},q:'bad',res:'It escalates into a public social media fight. Admin uses the division to justify ignoring both groups.',ins:'Narcissism of small differences: two groups 80% aligned destroying each other over the 20% gap while the administration watches.'},
+   ]},
+];
+
+// Snapshot of starting faction states for clean replays
+const FACTION_DEFAULTS = {};
+FACTIONS.forEach(f => { FACTION_DEFAULTS[f.id] = {status:f.status, support:f.support}; });
+
+const ROUNDS = [
+  {id:'message',kicker:'Round 1 · The Goldilocks Dilemma',
+   title:'The school just announced a new policy restricting phone use during lunch and free periods. How do you respond publicly?',
+   flavor:'Some students are furious and want to go loud immediately. Others including students who might support you are cautious and don\'t want trouble. The message you put out first defines who joins and who stays away.',
+   newspaper:{hl_good:'Students Launch Organized Policy Review Campaign',hl_bad:'Student Protest Turns Hostile Administration Digs In',hl_neu:'Student Dissatisfaction Simmers But Goes Nowhere',
+              sub_good:'Measured approach wins early support from parents and faculty',sub_bad:'Principal calls student language "disrespectful and counterproductive"',sub_neu:'No formal response filed; window for change narrows',
+              body_good:'A student-led campaign launched this week with a formal petition and data on how the new phone policy affects students\' ability to manage their schedules and reach parents.',
+              body_bad:'A student social media post calling the policy "authoritarian" went viral, prompting the principal to issue a statement defending the administration.',
+              body_neu:'Student frustration over the new phone policy has not produced any organized response, leaving administration confident the issue will fade.'},
+   choices:[
+     {letter:'A',txt:'Post a viral call-out on Instagram calling the policy "authoritarian" and tagging the school. Get everyone riled up.',tags:['radical'],rhet:'pathos',
+      o:{q:'bad',head:'Too hot',txt:'450 likes. The principal emails all parents calling the post "disrespectful." Three teachers who were quietly on your side go silent. Admin uses it to paint you as the problem.',
+         ins:'Goldilocks (p.117): a message too hot attracts the devoted but gives your opponents the frame they need to dismiss you.',
+         d:{coalition:-1,cred:-5,mom:+8,rad:+20,pres:+10}}},
+     {letter:'B',txt:'Launch a formal petition framed around "student wellbeing and family communication" not just phones.',tags:['goldilocks','trojan'],rhet:'logos',
+      o:{q:'good',head:'Just right',txt:'200 signatures in 48 hours including honor students and student athletes. Two teachers share it. The framing makes it hard to dismiss.',
+         ins:'Common tactics matter more than shared values. "Family communication" brings in people who don\'t care about phones and that\'s the coalition you need.',
+         d:{coalition:+2,cred:+8,mom:+5,rad:-15,pres:-5}}},
+     {letter:'C',txt:'Say nothing publicly yet. Talk to people one-on-one until you have enough support to make a move.',tags:['tactical'],rhet:'logos',
+      o:{q:'neutral',head:'Too cold',txt:'You stay quiet for two weeks. In that time, another student group posts a messy rant that becomes the story. Admin declares the issue closed.',
+         ins:'The Goldilocks zone requires actually taking a position. Silence creates a vacuum someone else fills.',
+         d:{coalition:0,cred:+2,mom:-8,rad:-5}}},
+   ]},
+  {id:'frenemies',kicker:'Round 2 · The Narcissism of Small Differences',
+   title:'Another student group is also fighting the policy but they\'re doing it differently and they just posted calling your approach "performative."',
+   flavor:'They want a full reversal. You\'re focused on a compromise. You agree on 80% of the issue but they just publicly attacked you. Your group is furious and wants to clap back. This is the moment Grant warns about near-allies destroying each other.',
+   newspaper:{hl_good:'Student Groups Unite Behind Shared Policy Demand',hl_bad:'Student Infighting Undermines Policy Campaign',hl_neu:'Two Student Groups Maintain Uneasy Distance',
+              sub_good:'Joint statement signals broader coalition forming',sub_bad:'Principal says internal conflict "confirms students aren\'t ready for this conversation"',sub_neu:'Neither group gains ground as administration watches',
+              body_good:'Two student groups that had been at odds released a joint statement calling for a formal review of the phone policy, with a combined petition of over 300 signatures.',
+              body_bad:'A public social media exchange between two student groups drew more attention than the policy itself, with the principal citing the dispute as evidence the issue is "being politicized."',
+              body_neu:'The two student groups remain separate. Each is small enough to ignore. Together, they\'d be impossible to dismiss.'},
+   choices:[
+     {letter:'A',txt:'Post a response calling out their hypocrisy they\'re hurting the cause.',tags:['radical'],rhet:'pathos',
+      o:{q:'bad',head:'The narcissism trap',txt:'It becomes a whole thing. Screenshots circulate. Someone screenshots the whole exchange and sends it to a teacher. Admin says the student body is "too divided" to take seriously.',
+         ins:'Anthony and Stanton wrote Lucy Stone out of the history of the suffrage movement over disagreements like this. Grant calls it the narcissism of small differences (p.116).',
+         d:{coalition:-1,cred:-10,mom:-5,rad:+10,pres:+10}}},
+     {letter:'B',txt:'DM their leader. Offer to co-author a joint statement and share credit equally.',tags:['trojan','goldilocks'],rhet:'ethos',
+      o:{q:'good',head:'Frenemy converted',txt:'They\'re surprised. They agree. The joint statement gets more traction than either group alone and admin can\'t dismiss it as one clique\'s complaint.',
+         ins:'Grant: converting a frenemy beats fighting one. Give them a stake in the outcome and they become your strongest defenders.',
+         d:{coalition:+2,cred:+5,mom:+6,rad:-8,pres:-6}}},
+     {letter:'C',txt:'Don\'t respond publicly. Tell your group to stay focused on the petition.',tags:['tactical'],rhet:'logos',
+      o:{q:'neutral',head:'Managed standoff',txt:'The drama fades. But the two groups stay separate and each remains just small enough to ignore.',
+         ins:'Ignoring a frenemy conflict delays but rarely resolves it. Two small groups are easier to dismiss than one unified one.',
+         d:{coalition:0,cred:+1,mom:-2,pres:0}}},
+   ]},
+  {id:'trojan',kicker:'Round 3 · The Trojan Horse',
+   title:'You need faculty support but teachers say they can\'t publicly oppose the administration.',
+   flavor:'You\'ve talked to several teachers who privately think the policy is badly designed. But they\'re employees. They won\'t sign anything or show up at a student meeting. You need them but direct asks keep getting shot down. This is Grant\'s Trojan horse moment.',
+   newspaper:{hl_good:'Faculty Concerns Prompt Formal Policy Review',hl_bad:'Student Pressure on Teachers Backfires',hl_neu:'Student Campaign Stalls Without Faculty Support',
+              sub_good:'Administration agrees to revisit policy after staff raises implementation concerns',sub_bad:'Principal reminds staff that policy matters are "not student-driven decisions"',sub_neu:'Without faculty backing, student petition loses momentum',
+              body_good:'The administration announced a 30-day policy review after faculty raised implementation concerns at a staff meeting concerns that mirrored those in the student petition.',
+              body_bad:'After students publicly called on teachers to speak out, the principal sent a memo reminding staff of proper channels for policy feedback.',
+              body_neu:'The student campaign has collected 200 signatures but lacks the institutional backing needed to prompt a formal review.'},
+   choices:[
+     {letter:'A',txt:'Organize students to publicly pressure teachers to take a side: "If you agree with us, say so."',tags:['radical'],rhet:'pathos',
+      o:{q:'bad',head:'Backfired',txt:'Teachers feel ambushed and exposed. The two most sympathetic ones go completely quiet. The principal sends a staff memo about "appropriate channels."',
+         ins:'Direct confrontation triggers reactance in people with real institutional risk. You turned allies into people who now need to stay away from you.',
+         d:{coalition:0,cred:-3,mom:-5,rad:+12,pres:+10}}},
+     {letter:'B',txt:'Ask one sympathetic teacher to raise "implementation concerns" at the next staff meeting using your data, but in their own words.',tags:['trojan'],rhet:'ethos',
+      o:{q:'good',head:'Inside the walls',txt:'The teacher raises it. Administration has to respond to a colleague, not a student. A formal review gets put on the calendar.',
+         ins:'Trojan horse: change from within reads as authentic. When a teacher raises it, it\'s no longer a student complaint it\'s a professional concern.',
+         d:{coalition:+1,cred:+7,mom:+9,rad:-10,pres:-8}}},
+     {letter:'C',txt:'Ask teachers to just give anonymous feedback through the school\'s suggestion system.',tags:['goldilocks','tactical'],rhet:'logos',
+      o:{q:'good',head:'The side door',txt:'Three teachers submit feedback. It\'s not dramatic, but the administration now has official documentation that even staff have concerns.',
+         ins:'Common action before full commitment. The side door is slower but keeps the relationship intact for bigger asks later.',
+         d:{coalition:+1,cred:+5,mom:+4,rad:-5,pres:-4}}},
+   ]},
+  {id:'expansion',kicker:'Round 4 · Broadening vs. Deepening',
+   title:'The school\'s most popular social media account 2,000 followers offers to amplify your campaign. But they\'ve posted controversial things before that upset a lot of students.',
+   flavor:'Their reach would transform your visibility overnight. But three of your core organizers say their past posts were hurtful and they don\'t want to be associated with them. This is the coalition builder\'s real dilemma: growth vs. trust.',
+   newspaper:{hl_good:'Student Campaign Gains Wide Reach Through Accountable Partnership',hl_bad:'Coalition Fractures as Controversial Account Joins Campaign',hl_neu:'Student Group Turns Down Amplification Keeps Smaller Reach',
+              sub_good:'Conditions-based collaboration seen as model for student organizing',sub_bad:'Three founding members leave campaign over controversial partnership',sub_neu:'Principled decision limits campaign reach ahead of key vote',
+              body_good:'The student campaign announced a conditional partnership with a popular student account, requiring a public acknowledgment of past harmful posts before any amplification.',
+              body_bad:'The coalition lost three of its founding organizers after partnering with an account several students said had posted hurtful content.',
+              body_neu:'The campaign declined a partnership that would have tripled its reach, citing concerns from core members about the account\'s history.'},
+   choices:[
+     {letter:'A',txt:'Accept. Post together immediately. You need the reach.',tags:['tactical'],rhet:'logos',
+      o:{q:'neutral',head:'Costly reach',txt:'You gain 800 new petition signers. But three of your core organizers quit publicly. The campaign\'s credibility takes a hit in the same week you needed it most.',
+         ins:'Coalition stability depends on founding members. Resources gained can be offset by credibility lost especially right before a key decision.',
+         d:{coalition:+1,cred:-8,mom:+4,rad:-5,pres:+5}}},
+     {letter:'B',txt:'Agree but only if they post a public acknowledgment of past harm first.',tags:['goldilocks','tactical'],rhet:'ethos',
+      o:{q:'good',head:'Structured inclusion',txt:'They agree to the conditions. Core members feel respected. The acknowledgment actually gets more engagement than the campaign post.',
+         ins:'How an ally joins can matter as much as whether they join. The conditions turned a liability into a credibility moment.',
+         d:{coalition:+2,cred:+9,mom:+3,rad:-8,pres:-3}}},
+     {letter:'C',txt:'Decline. The trust of your core members matters more than follower count.',tags:['radical'],rhet:'pathos',
+      o:{q:'neutral',head:'Integrity intact, reach limited',txt:'Your core stays solid. But without the amplification, your petition stalls at 200 signatures not enough to force a formal review.',
+         ins:'Grant: pragmatic alliance-building often requires working with imperfect partners. Purity has real strategic costs.',
+         d:{coalition:0,cred:+4,mom:-6,rad:+8,pres:+3}}},
+   ]},
+  {id:'fracture',kicker:'Round 5 · The Defining Moment',
+   title:'The principal offers a compromise: phones allowed during lunch only. Your core organizers say it\'s not enough. Your moderate allies say take it.',
+   flavor:'This is the moment. Accept and you get something real but split from your base. Reject it and you keep the coalition together but risk getting nothing. How you handle this determines whether the coalition survives and what kind of leader you are.',
+   newspaper:{hl_good:'Students Negotiate Win While Keeping Coalition United',hl_bad:'Coalition Splits as Students Reject Administration Offer',hl_neu:'Students Reject Compromise Full Reversal Demand Stands',
+              sub_good:'Strategic counter-proposal turns partial offer into meaningful policy change',sub_bad:'Division gives administration cover to withdraw offer entirely',sub_neu:'Hard-line stance impresses base but closes negotiation window',
+              body_good:'Student leaders responded to the administration\'s partial offer with a counter-proposal, securing expanded phone access and a formal 60-day review period more than the original offer.',
+              body_bad:'After students publicly rejected the compromise, the principal withdrew the offer entirely, citing the coalition\'s "inability to reach internal consensus."',
+              body_neu:'The student coalition rejected the administration\'s lunch-only compromise, maintaining their demand for a full reversal. The administration has not responded.'},
+   choices:[
+     {letter:'A',txt:'Reject it publicly and loudly. Lunch-only is not what you fought for.',tags:['radical'],rhet:'pathos',
+      o:{q:'neutral',head:'Principled rejection',txt:'Your base cheers. Your moderate allies quietly step back. Admin withdraws the offer. You\'re back to square one with less goodwill than before.',
+         ins:'Radicalism is sometimes right but usually needs the full coalition to achieve policy change. Rejecting something real to hold out for everything is a high-risk move.',
+         d:{coalition:-2,cred:+6,mom:-8,rad:+20,pres:+8}}},
+     {letter:'B',txt:'Counter-propose: lunch AND free periods, plus a formal 60-day review. Frame it as building on their offer.',tags:['goldilocks','trojan'],rhet:'logos',
+      o:{q:'good',head:'The counter works',txt:'Admin agrees to the expanded version. Not a full reversal but more than you had. Your base is satisfied enough. Your moderates stay. The review is the real prize.',
+         ins:'Grant\'s Goldilocks insight: find the message that satisfies no single member fully but dissatisfies none enough to leave and make that your offer.',
+         d:{coalition:+1,cred:+5,mom:+6,rad:-10,pres:-5}}},
+     {letter:'C',txt:'Bring it to the full coalition and vote on whether to accept, reject, or counter.',tags:['tactical'],rhet:'ethos',
+      o:{q:'good',head:'Coalition decides together',txt:'It\'s messy. Takes two days. But the coalition agrees on a counter-offer. When it goes back to admin, it has the full weight of a united student body behind it.',
+         ins:'Coalitions built on one leader\'s decision are fragile. Distributing the decision builds the kind of ownership that survives the next crisis.',
+         d:{coalition:+1,cred:+7,mom:+3,rad:-5,pres:-4}}},
+   ]},
+];
+
+const PUSHBACK_EVENTS = [
+  {txt:'The principal sends an email to all parents saying the campaign is "spreading misinformation" about the policy. Three parents who were on your side go quiet.',
+   opts:[
+     {txt:'Send a point-by-point correction to the same parent listserv.',d:{pres:-5,cred:+6,mom:+3},r:'Parents see the receipts. The principal\'s framing looks weak next to your specifics. You get three new parent allies.'},
+     {txt:'Ask a sympathetic parent to reply to the thread not you.',d:{pres:-7,cred:+5,coalition:+1},r:'A parent defending you carries more weight than you defending yourself. The Trojan horse works on email threads too.'},
+     {txt:'Ignore it and keep collecting signatures.',d:{pres:+3,cred:-3,mom:+4},r:'Your base respects the focus but the misinformation framing sticks with people who didn\'t already support you.'},
+   ]},
+  {txt:'The VP offers you a spot on a new "Student Advisory Committee" that will "consult" on policies. Your group thinks it\'s a trap to neutralize you.',
+   opts:[
+     {txt:'Join but bring a written list of demands to the first meeting.',d:{pres:-6,cred:+4,coalition:+1},r:'They didn\'t expect you to show up prepared. You turn a co-optation attempt into actual access.'},
+     {txt:'Decline publicly. "We won\'t be managed we want real change."',d:{pres:+5,cred:+4,mom:+5},r:'Your base loves it. But you\'ve closed the one formal channel you had into administration.'},
+     {txt:'Send a coalition representative instead of going yourself.',d:{pres:-4,cred:+3},r:'Harder to co-opt than the campaign leader. You get inside access while staying outside.'},
+   ]},
+  {txt:'A group of students who actually support the phone policy start a counter-petition. It\'s getting signatures from students you thought were neutral.',
+   opts:[
+     {txt:'Host a public forum where both sides can speak you moderate it.',d:{pres:-5,cred:+8,coalition:+1},r:'The forum shows you\'re confident enough to hear disagreement. Undecided students come in skeptical and leave impressed.'},
+     {txt:'Post data showing most students oppose the policy. Make the numbers the story.',d:{pres:-3,cred:+5,mom:+4},r:'Hard to argue with a survey. Three teachers share the post. The counter-petition loses steam.'},
+     {txt:'Call out the counter-petition as administration-influenced.',d:{pres:+8,mom:+5,cred:-5},r:'You can\'t actually prove it and now you look paranoid. Some neutral students side with the other group.'},
+   ]},
+  {txt:'A teacher tells you privately that the principal is about to announce a "modified" version of the policy a small tweak that doesn\'t fix the real problem but will let her say she listened.',
+   opts:[
+     {txt:'Get ahead of it release your counter-proposal before the announcement.',d:{pres:-4,cred:+6,mom:+4},r:'Now the conversation is about your proposal, not hers. You\'ve reframed what "listening" looks like.'},
+     {txt:'Prepare a public response the moment the announcement drops.',d:{pres:-3,cred:+4,mom:+3},r:'You respond within the hour. Students see you were ready. The modification gets called out before it has time to settle.'},
+     {txt:'Accept the modification and call it a first step.',d:{pres:-8,coalition:+1,cred:+3},r:'The Goldilocks move: you get something real and frame it as momentum, not surrender. But some of your base feels sold out.'},
+   ]},
+];
+
+// ══════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════
+let S = {}, char = null, round = 0, choiceDone = false;
+let diploUsed = {}, pbResolved = false;
+
+// ══════════════════════════════════════
+//  AUDIO
+// ══════════════════════════════════════
+let _ac = null;
+function ac(){ if(!_ac){try{_ac=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}} return _ac; }
+function tone(f,d,t='sine',v=0.07){ const ctx=ac();if(!ctx)return; const o=ctx.createOscillator(),g=ctx.createGain(); o.connect(g);g.connect(ctx.destination);o.type=t;o.frequency.value=f;g.gain.setValueAtTime(0,ctx.currentTime);g.gain.linearRampToValueAtTime(v,ctx.currentTime+0.01);g.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+d);o.start();o.stop(ctx.currentTime+d); }
+function sfxGood(){tone(440,.1);setTimeout(()=>tone(554,.12),85);setTimeout(()=>tone(659,.18),170);}
+function sfxBad(){tone(220,.22,'sawtooth',.05);setTimeout(()=>tone(196,.28,'sawtooth',.04),190);}
+function sfxNeu(){tone(330,.14);setTimeout(()=>tone(330,.14),210);}
+function sfxClick(){tone(660,.04,.05);}
+
+function startGame(){
+  sfxGood();
+  // Fixed balanced starting stats — no character select
+  S = {coalition:1, cred:50, mom:45, rad:50, pres:20};
+  round = 0; choiceDone = false; diploUsed = {}; pbResolved = false;
+  S._log = [];
+  // Reset factions to starting state so replays are clean
+  FACTIONS.forEach(f => {
+    f.status = FACTION_DEFAULTS[f.id].status;
+    f.support = FACTION_DEFAULTS[f.id].support;
+  });
+  document.getElementById('char-scr').classList.remove('on');
+  document.getElementById('game-scr').classList.add('on');
+  updateHUD();
+  renderRound();
+}
+
+// ══════════════════════════════════════
+//  HUD
+// ══════════════════════════════════════
+function getAllied(){ return FACTIONS.filter(f=>f.status==='allied').length; }
+function updateHUD(){
+  const alliedCount = getAllied();
+  S.coalition = alliedCount; // keep in sync for scoring
+  document.getElementById('h-c').textContent = alliedCount + '/6';
+  document.getElementById('h-cr').textContent = S.cred;
+  document.getElementById('h-m').textContent = S.mom;
+  document.getElementById('h-rad').style.width = clamp(S.rad,5,95)+'%';
+  document.getElementById('h-pres').style.width = clamp(S.pres||0,0,100)+'%';
+}
+function clamp(v,mn,mx){return Math.max(mn,Math.min(mx,v));}
+
+// ══════════════════════════════════════
+//  NEWSPAPER
+// ══════════════════════════════════════
+function showNewspaper(r, q){
+  const np = document.getElementById('newspaper');
+  if(!q||!r.newspaper){ np.classList.remove('on'); return; }
+  const n = r.newspaper;
+  document.getElementById('np-hl').textContent = q==='good'?n.hl_good:q==='bad'?n.hl_bad:n.hl_neu;
+  document.getElementById('np-sub').textContent = q==='good'?n.sub_good:q==='bad'?n.sub_bad:n.sub_neu;
+  document.getElementById('np-body').textContent = (q==='good'?n.body_good:q==='bad'?n.body_bad:n.body_neu)+' Coalition now at '+S.coalition+' groups.';
+  const st = document.getElementById('np-stamp');
+  st.textContent = q==='good'?'Favorable':q==='bad'?'Hostile':'Neutral';
+  st.className = 'np-stamp '+(q==='good'?'fav':q==='bad'?'hos':'neu');
+  np.classList.add('on');
+}
+
+// ══════════════════════════════════════
+//  PUSHBACK
+// ══════════════════════════════════════
+function tryPushback(){
+  const pb = document.getElementById('pushback');
+  if(S.pres < 30 || round === 0){ pb.classList.remove('on'); return; } // triggers at 30, was 40
+  if(round % 2 !== 0){ pb.classList.remove('on'); return; }
+  pbResolved = false;
+  const ev = PUSHBACK_EVENTS[Math.min(Math.floor(round/2), PUSHBACK_EVENTS.length-1)];
+  document.getElementById('pb-txt').textContent = ev.txt;
+  const btns = document.getElementById('pb-btns');
+  btns.innerHTML='';
+  document.getElementById('pb-result').classList.remove('on');
+  ev.opts.forEach(o => {
+    const b = document.createElement('button');
+    b.className='pb-btn'; b.textContent=o.txt;
+    b.onclick=()=>resolvePB(o,ev);
+    btns.appendChild(b);
+  });
+  pb.classList.add('on');
+}
+function resolvePB(opt,ev){
+  sfxClick();
+  pbResolved=true;
+  document.querySelectorAll('.pb-btn').forEach(b=>{b.disabled=true;b.style.opacity='.4';});
+  const d={...opt.d};
+  // Responding to pushback always costs momentum it's a distraction from organizing
+  d.mom=(d.mom||0)-4;
+  applyDelta(d);
+  // If pressure is very high, pushback also drains credibility regardless
+  if(S.pres>=65){ S.cred=clamp(S.cred-4,0,100); }
+  updateHUD();
+  const res=document.getElementById('pb-result');
+  res.textContent=opt.r+' (Dealing with this cost you time and energy you can\'t get back.)';
+  res.classList.add('on');
+}
+
+// ══════════════════════════════════════
+//  FACTION MAP
+// ══════════════════════════════════════
+function buildFactionMap(){
+  const map = document.getElementById('faction-map');
+  map.innerHTML='';
+  FACTIONS.forEach(f=>{
+    const el=document.createElement('div');
+    el.className='fcard '+(f.status==='allied'?'allied':f.status==='hostile'?'hostile':'')+(diploUsed[f.id]?' used':'');
+    el.innerHTML=`<div class="fcard-top"><div class="fcard-icon">${f.icon}</div><div><div class="fcard-name">${f.name}</div><div class="fcard-status" style="color:${f.status==='allied'?'#1a9a80':f.status==='hostile'?'#c0392b':'#6a6070'}">${f.status==='allied'?'✓ Allied':f.status==='hostile'?'✗ Hostile':'◌ Neutral'}</div></div></div><div class="fcard-bar"><div class="fcard-fill" style="width:${f.support}%"></div></div>`;
+    if(!diploUsed[f.id]) el.onclick=()=>openDiplo(f);
+    map.appendChild(el);
+  });
+}
+
+// ══════════════════════════════════════
+//  DIPLOMACY
+// ══════════════════════════════════════
+function openDiplo(f){
+  sfxClick();
+  const modal=document.getElementById('diplo');
+  document.getElementById('d-ava').textContent=f.icon;
+  document.getElementById('d-ava').style.background=f.color+'33';
+  document.getElementById('d-name').textContent=f.name;
+  const sc={allied:'color:#1a9a80',hostile:'color:#c0392b',neutral:'color:#6a6070'};
+  document.getElementById('d-stat').style=sc[f.status]||'';
+  document.getElementById('d-stat').textContent=f.status==='allied'?'✓ Allied':f.status==='hostile'?'✗ Hostile':'◌ Neutral';
+  document.getElementById('d-concern').textContent=f.concern;
+  document.getElementById('d-result').classList.remove('on');
+  document.getElementById('d-insight').classList.remove('on');
+  document.getElementById('d-chips').innerHTML='';
+  const dc=document.getElementById('d-choices');
+  dc.innerHTML='';
+  f.diplo.forEach(c=>{
+    const btn=document.createElement('button');
+    btn.className='dchoice';
+    const dd = c.d;
+    const dHints = [];
+    if(dd.support && dd.support>0)    dHints.push({lbl:'Their support ↑',cls:'dtag-eth'});
+    if(dd.support && dd.support<0)    dHints.push({lbl:'Their support ↓',cls:'dtag-pat'});
+    if(dd.coalition && dd.coalition>0)dHints.push({lbl:'Coalition ↑',cls:'dtag-log'});
+    if(dd.cred && dd.cred>0)          dHints.push({lbl:'Credibility ↑',cls:'dtag-log'});
+    if(dd.cred && dd.cred<0)          dHints.push({lbl:'Credibility ↓',cls:'dtag-pat'});
+    if(dd.pres && dd.pres<0)          dHints.push({lbl:'Pressure ↓',cls:'dtag-eth'});
+    if(dd.pres && dd.pres>0)          dHints.push({lbl:'Pressure ↑',cls:'dtag-rad'});
+    dHints.push({lbl:'Momentum ↓',cls:'dtag-pat'}); // always costs momentum (hidden system hint)
+    const dHintHTML = dHints.map(h=>`<span class="dtag ${h.cls}">${h.lbl}</span>`).join('');
+    btn.innerHTML=`<div style="margin-bottom:4px">${c.txt}</div><div class="dchoice-tags">${dHintHTML}</div>`;
+    btn.onclick=()=>resolveDiplo(f,c);
+    dc.appendChild(btn);
+  });
+  modal.classList.add('on');
+}
+function resolveDiplo(f,c){
+  sfxClick();
+  diploUsed[f.id]=true;
+  const d={...c.d};
+
+  // Diplomacy always costs momentum it takes time and energy
+  d.mom = (d.mom||0) - 3;
+  // Bad diplomacy hits harder
+  if(c.q==='bad')  { d.cred=(d.cred||0)-5; d.pres=(d.pres||0)+8; }
+  if(c.q==='mixed'){ d.pres=(d.pres||0)+4; }
+  if(c.q==='good') { d.pres=(d.pres||0)+2; } // even good diplomacy attracts attention
+  // Support gains are smaller factions are harder to move
+  if(d.support && d.support > 0) d.support = Math.round(d.support * 0.75);
+
+  applyDelta(d);
+  if(d.support){ const fac=FACTIONS.find(x=>x.id===f.id); fac.support=clamp(fac.support+d.support,0,100); if(fac.support>=70) fac.status='allied'; if(fac.support<30&&fac.status==='allied') fac.status='neutral'; } // threshold raised to 70
+  // Credibility floor check after diplomacy too
+  if(S.cred<=25){ const neutrals=FACTIONS.filter(ff=>ff.status==='neutral'&&ff.id!==f.id); if(neutrals.length>0){neutrals[0].status='hostile';} }
+  buildFactionMap(); updateHUD();
+  document.querySelectorAll('.dchoice').forEach(b=>{b.disabled=true;b.style.opacity='.4';});
+  const res=document.getElementById('d-result'); res.textContent=c.res; res.classList.add('on');
+  const ins=document.getElementById('d-insight'); ins.textContent='"'+c.ins+'"'; ins.classList.add('on');
+  const chips=document.getElementById('d-chips'); chips.innerHTML='';
+  showChips(chips,[{l:'Coalition',v:d.coalition},{l:'Cred',v:d.cred},{l:'Mom',v:d.mom}]);
+
+  if(c.q==='good') sfxGood(); else if(c.q==='bad') sfxBad(); else sfxNeu();
+}
+function closeDiplo(){ document.getElementById('diplo').classList.remove('on'); }
+
+// ══════════════════════════════════════
+//  ROUND RENDER
+// ══════════════════════════════════════
+function renderRound(){
+  choiceDone=false;
+  const r=ROUNDS[round];
+  // dots
+  const dots=document.getElementById('rdots'); dots.innerHTML='';
+  ROUNDS.forEach((_,i)=>{ const d=document.createElement('div'); d.className='rd'+(i<round?' done':i===round?' cur':''); dots.appendChild(d); });
+  // newspaper from last round
+  if(round>0&&S._lastQ) showNewspaper(ROUNDS[round-1],S._lastQ);
+  else document.getElementById('newspaper').classList.remove('on');
+  // pushback
+  tryPushback();
+  // round header
+  document.getElementById('r-kicker').textContent=r.kicker;
+  document.getElementById('r-title').textContent=r.title;
+  document.getElementById('r-flavor').textContent=r.flavor;
+  // faction map
+  buildFactionMap();
+  // choices — shuffled each time so the best answer isn't always in the same spot
+  const cw=document.getElementById('choices'); cw.innerHTML='';
+  const shuffled=[...r.choices].sort(()=>Math.random()-.5);
+  const letters=['A','B','C','D'];
+  shuffled.forEach((c,idx)=>{
+    const btn=document.createElement('div'); btn.className='choice';
+    // Build vague stat hints from the choice's delta no good/bad signals, just what might move
+    const d = c.o.d;
+    const hints = [];
+    if(d.coalition && d.coalition>0)  hints.push({lbl:'Coalition ↑',cls:'dtag-log'});
+    if(d.coalition && d.coalition<0)  hints.push({lbl:'Coalition ↓',cls:'dtag-pat'});
+    if(d.cred && d.cred>0)            hints.push({lbl:'Credibility ↑',cls:'dtag-log'});
+    if(d.cred && d.cred<0)            hints.push({lbl:'Credibility ↓',cls:'dtag-pat'});
+    if(d.mom && d.mom>0)              hints.push({lbl:'Momentum ↑',cls:'dtag-gold'});
+    if(d.mom && d.mom<0)              hints.push({lbl:'Momentum ↓',cls:'dtag-pat'});
+    if(d.pres && d.pres<0)            hints.push({lbl:'Pressure ↓',cls:'dtag-eth'});
+    if(d.pres && d.pres>0)            hints.push({lbl:'Pressure ↑',cls:'dtag-rad'});
+    if(c.tags.includes('radical') && !d.pres) hints.push({lbl:'Pressure ↑',cls:'dtag-rad'});
+    const hintHTML = hints.map(h=>`<span class="dtag ${h.cls}">${h.lbl}</span>`).join('');
+    btn.innerHTML=`<span class="choice-letter">${letters[idx]}.</span><span class="choice-text">${c.txt}</span><div class="choice-tags">${hintHTML}</div>`;
+    btn.onclick=()=>makeChoice(c);
+    cw.appendChild(btn);
+  });
+  document.getElementById('outcome').classList.remove('on');
+}
+
+// ══════════════════════════════════════
+//  CHOICE
+// ══════════════════════════════════════
+function makeChoice(c){
+  if(choiceDone) return;
+  choiceDone=true;
+  sfxClick();
+  document.querySelectorAll('.choice').forEach(b=>{b.style.opacity='.4';b.style.pointerEvents='none';});
+  const o=c.o; const d={...o.d};
+
+  // ── TRADEOFF SYSTEM: every good choice costs something ──
+  // Good choices always have a hidden cost to prevent pure-win stacking
+  if(o.q==='good'){
+    if(c.tags.includes('trojan'))  { d.mom=(d.mom||0)-3; }   // slow burn Trojan horse takes time
+    if(c.tags.includes('goldilocks')){ d.mom=(d.mom||0)-2; } // moderate message = less energy
+    if(c.tags.includes('tactical')) { d.cred=(d.cred||0)-2; }// tactical = less authentic
+  }
+  // Neutral choices always cost more momentum than they look
+  if(o.q==='neutral'){ d.mom=(d.mom||0)-4; d.pres=(d.pres||0)+5; }
+
+  applyDelta(d);
+
+  // ── PRESSURE SYSTEM: harder scaling ──
+  if(c.tags.includes('radical'))   S.pres=clamp((S.pres||20)+12,0,100); // was +8
+  if(c.tags.includes('trojan'))    S.pres=clamp((S.pres||20)-4,0,100);
+  if(c.tags.includes('goldilocks'))S.pres=clamp((S.pres||20)-3,0,100);
+  if(o.q==='bad')   S.pres=clamp((S.pres||20)+12,0,100); // was +8
+  if(o.q==='good')  S.pres=clamp((S.pres||20)+3,0,100);  // even good moves attract attention
+
+  // ── PRESSURE DECAY: high pressure actively drains credibility each round ──
+  if(S.pres>=70) { S.cred=clamp(S.cred-8,0,100); }
+  else if(S.pres>=50) { S.cred=clamp(S.cred-4,0,100); }
+
+  S._lastQ=o.q;
+  S._choiceCount=(S._choiceCount||0)+1;
+  // Log this decision for the end-screen debrief
+  const r=ROUNDS[round];
+  S._log.push({
+    round: round+1,
+    kicker: r.kicker.split('·')[1]?.trim()||r.kicker,
+    chosen: c.txt,
+    chosenQ: o.q,
+    chosenHead: o.head,
+    betterOption: o.q!=='good' ? r.choices.find(x=>x.o.q==='good') : null,
+    allOptions: r.choices
+  });
+
+  // ── CREDIBILITY FLOOR: fall below 25 and a neutral faction flips hostile ──
+  if(S.cred<=25){
+    const neutrals=FACTIONS.filter(f=>f.status==='neutral');
+    if(neutrals.length>0){ neutrals[0].status='hostile'; neutrals[0].support=clamp(neutrals[0].support-20,0,100); }
+  }
+
+  updateHUD();
+
+  // ── FACTION NUDGE: harder, smaller gains ──
+  if(o.q==='good'){
+    const ns=FACTIONS.filter(f=>f.status==='neutral');
+    if(ns.length){ ns[0].support=clamp(ns[0].support+12,0,100); if(ns[0].support>=70) ns[0].status='allied'; } // was 18/65
+  }
+  if(o.q==='bad'){
+    const as=FACTIONS.filter(f=>f.status==='allied');
+    if(as.length>1){ as[as.length-1].support=clamp(as[as.length-1].support-22,0,100); if(as[as.length-1].support<35) as[as.length-1].status='neutral'; } // was -18
+  }
+  // Two bad choices in a row costs you an ally outright
+  if(o.q==='bad'&&S._lastBad){
+    const as2=FACTIONS.filter(f=>f.status==='allied');
+    if(as2.length>0){ as2[0].status='neutral'; as2[0].support=clamp(as2[0].support-15,0,100); }
+  }
+  S._lastBad=(o.q==='bad');
+
+  buildFactionMap(); updateHUD();
+
+  // build outcome text append hidden tradeoff warning
+  let outTxt = o.txt;
+  if(o.q==='good'&&c.tags.includes('trojan')) outTxt+=' (Your base is a little quieter than you\'d like the slow approach costs energy.)';
+  if(o.q==='good'&&c.tags.includes('goldilocks')) outTxt+=' (The moderate framing works, but some of your most passionate supporters feel like you\'re pulling punches.)';
+
+  const oh=document.getElementById('out-head'); oh.textContent=o.head; oh.className='out-head '+o.q;
+  document.getElementById('out-txt').textContent=outTxt;
+  document.getElementById('out-insight').textContent='"'+o.ins+'"';
+  const chips=document.getElementById('out-chips'); chips.innerHTML='';
+  showChips(chips,[{l:'Coalition',v:d.coalition},{l:'Cred',v:d.cred},{l:'Mom',v:d.mom},{l:'Pressure',v:d.pres||((o.q==='bad'?12:o.q==='good'?3:5))}]);
+  if(S.cred<=25){const w=document.createElement('span');w.className='dchip neg';w.textContent='⚠ Cred too low a faction flipped hostile';chips.appendChild(w);}
+
+  document.getElementById('next-btn').textContent=round<ROUNDS.length-1?'Next round →':'See results →';
+  document.getElementById('outcome').classList.add('on');
+  document.getElementById('outcome').scrollIntoView({behavior:'smooth',block:'nearest'});
+  if(o.q==='good') sfxGood(); else if(o.q==='bad') sfxBad(); else sfxNeu();
+}
+
+function nextRound(){
+  sfxClick();
+  round++;
+  if(round>=ROUNDS.length){ showEnd(); return; }
+  renderRound();
+  document.getElementById('rdots').scrollIntoView({behavior:'smooth'});
+}
+
+// ══════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════
+function applyDelta(d){
+  if(d.coalition!==undefined) S.coalition=Math.max(0,S.coalition+(d.coalition||0));
+  if(d.cred!==undefined) S.cred=clamp(S.cred+(d.cred||0),0,100);
+  if(d.mom!==undefined) S.mom=clamp(S.mom+(d.mom||0),0,100);
+  if(d.rad!==undefined) S.rad=clamp(S.rad+(d.rad||0),5,95);
+  if(d.pres!==undefined) S.pres=clamp((S.pres||20)+(d.pres||0),0,100);
+}
+function showChips(el,arr){
+  arr.forEach(x=>{ if(!x.v&&x.v!==0) return; if(x.v===0) return; const c=document.createElement('span'); c.className='dchip '+(x.v>0?'pos':'neg'); c.textContent=`${x.l} ${x.v>0?'+':''}${x.v}`; el.appendChild(c); });
+}
+
+// ══════════════════════════════════════
+//  END TOUGHER SCORING
+// ══════════════════════════════════════
+function showEnd(){
+  document.getElementById('game-scr').classList.remove('on');
+  document.getElementById('end-scr').classList.add('on');
+  const allied=FACTIONS.filter(f=>f.status==='allied').length;
+
+  // Score now requires high coalition AND high cred AND low pressure hard to stack all three
+  // Pressure above 50 is a heavy penalty
+  const pressurePenalty = S.pres > 50 ? (S.pres - 50) * 0.8 : 0;
+  const total = (S.coalition*14) + (S.cred*0.6) + (S.mom*0.4) + (allied*6) - pressurePenalty;
+
+  // Extra gate: can't get A+ unless you have at least 4 allied factions AND cred >= 55 AND pressure < 60
+  const aplusGate = allied>=4 && S.cred>=55 && S.pres<60;
+  const aplusGateA  = allied>=3 && S.cred>=45 && S.pres<75;
+
+  let grade,title,desc;
+  if(total>=130 && aplusGate){
+    grade='A+';title='Policy Changed';
+    desc='You built a real coalition without losing anyone. You used the Trojan horse when doors were closed, the Goldilocks zone when they were open, and kept pressure low enough that admin actually wanted to negotiate. This is genuinely hard to do.';
+  } else if(total>=100 && aplusGateA){
+    grade='A';title='Formal Review Won';
+    desc='Strong enough coalition, strong enough credibility. You got the administration to the table. Not everything you wanted but more than anyone thought possible when this started.';
+  } else if(total>=75){
+    grade='B';title='Partial Win';
+    desc='You moved the needle. Some fractures, some too-hot moments but the petition forced a real conversation. That\'s more than most student campaigns get.';
+  } else if(total>=50){
+    grade='C';title='Still Fighting';
+    desc='The coalition is fragile and admin isn\'t taking you seriously. The narcissism trap, too-loud moves, and rising pressure cost you the credibility you needed.';
+  } else if(total>=25){
+    grade='D';title='Campaign Stalled';
+    desc='Real damage done. Factions flipped, credibility collapsed, pressure too high to negotiate. Grant\'s lesson: every choice has a tradeoff even the good ones.';
+  } else {
+    grade='F';title='Coalition Collapsed';
+    desc='The movement is over. Too much internal conflict, too many confrontational moves, credibility bottomed out. This is what happens to most real student campaigns.';
+  }
+
+  document.getElementById('eg').textContent=grade;
+  document.getElementById('et').textContent=title;
+  document.getElementById('ed').textContent=desc;
+  document.getElementById('es').innerHTML=`
+    <div><div class="est-val">${S.coalition}</div><div class="est-lbl">Coalition</div></div>
+    <div><div class="est-val">${S.cred}</div><div class="est-lbl">Credibility</div></div>
+    <div><div class="est-val" style="color:#1a9a80">${allied}/6</div><div class="est-lbl">Allied factions</div></div>
+    <div><div class="est-val" style="color:${S.pres>60?'#c0392b':'#c9a227'}">${S.pres}%</div><div class="est-lbl">Pressure</div></div>
+    <div><div class="est-val" style="color:#c9a227">${Math.round(total)}</div><div class="est-lbl">Final score</div></div>`;
+  // ── DEBRIEF LOG ──
+  const debrief = document.getElementById('debrief');
+  const log = S._log||[];
+  let debriefHTML = `<div class="debrief-lbl">Round by round what you did & what else was on the table</div>`;
+  log.forEach(entry => {
+    let betterHTML = '';
+    if(entry.betterOption){
+      betterHTML=`<div class="debrief-better"><strong>What would've worked better:</strong> "${entry.betterOption.txt}"<br>${entry.betterOption.o.txt}</div>`;
+    } else {
+      betterHTML=`<div class="debrief-better" style="border-left:2px solid rgba(26,154,128,.4)">This moved you in the right direction though every choice still has a cost somewhere.</div>`;
+    }
+    debriefHTML+=`
+      <div class="debrief-item" style="border-left-color:rgba(255,255,255,.15)">
+        <div class="debrief-round">Round ${entry.round} · ${entry.kicker}</div>
+        <div class="debrief-chosen">You chose: "${entry.chosen}"</div>
+        <div class="debrief-verdict" style="color:var(--mute)">${entry.chosenHead}</div>
+        ${betterHTML}
+      </div>`;
+  });
+  debrief.innerHTML = debriefHTML;
+
+
+  if(grade==='A+'||grade==='A') sfxGood(); else sfxNeu();
+}
+</script>
+</body>
+</html>
